@@ -6,15 +6,7 @@ import { motion } from 'framer-motion'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { PlusCircle, BookOpen, Zap, Brain, Target, Trophy, LogOut } from 'lucide-react'
-import { auth } from '@/lib/firebase'
-import { onAuthStateChanged, signOut } from 'firebase/auth'
-
-const topics = [
-  { id: 1, title: 'Mathematics', documentsCount: 3, testsCount: 2, color: 'bg-purple-500' },
-  { id: 2, title: 'History', documentsCount: 5, testsCount: 1, color: 'bg-blue-500' },
-  { id: 3, title: 'Science', documentsCount: 4, testsCount: 3, color: 'bg-green-500' },
-  { id: 4, title: 'Literature', documentsCount: 2, testsCount: 2, color: 'bg-yellow-500' },
-]
+import { getTopicsByUserId, Topic } from '@/lib/topics'
 
 const features = [
   { title: 'Personalized Learning', description: 'Tailored content for your unique learning style', icon: Brain },
@@ -24,22 +16,35 @@ const features = [
 ]
 
 export default function Home() {
-  const [user, setUser] = useState(null)
+  const [user, setUser] = useState<{ id: string, displayName: string | null, email: string | null } | null>(null)
+  const [topics, setTopics] = useState<Topic[]>([])
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser)
-    })
-
-    return () => unsubscribe()
+    const simulateAuth = async () => {
+      const simulatedUser = { id: 'placeholder-user-id', displayName: 'John Doe', email: 'john@example.com' };
+      setUser(simulatedUser);
+      if (simulatedUser) {
+        await fetchTopics(simulatedUser.id);
+      }
+      setIsLoading(false);
+    };
+    simulateAuth();
   }, [])
 
-  const handleSignOut = async () => {
+  const fetchTopics = async (userId: string) => {
     try {
-      await signOut(auth)
+      const userTopics = await getTopicsByUserId(userId)
+      setTopics(userTopics)
     } catch (error) {
-      console.error('Error signing out:', error)
+      console.error('Error fetching topics:', error)
+      setTopics([])
     }
+  }
+
+  const handleSignOut = async () => {
+    setUser(null);
+    setTopics([]);
   }
 
   return (
@@ -89,37 +94,50 @@ export default function Home() {
           Embark on a personalized educational adventure. Explore topics, take tests, and track your progress.
         </motion.p>
         
-        <motion.div 
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-16"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.4, staggerChildren: 0.1 }}
-        >
-          {topics.map((topic, index) => (
-            <motion.div
-              key={topic.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
-            >
-              <Card className="h-full flex flex-col overflow-hidden group hover:shadow-lg transition-shadow duration-300">
-                <CardHeader className={`${topic.color} text-white`}>
-                  <CardTitle>{topic.title}</CardTitle>
-                </CardHeader>
-                <CardContent className="flex-grow">
-                  <p className="text-gray-600">{topic.documentsCount} documents • {topic.testsCount} tests</p>
-                </CardContent>
-                <CardFooter className="bg-gray-50 group-hover:bg-gray-100 transition-colors duration-300">
-                  <Button variant="ghost" className="w-full" asChild>
-                    <Link href={`/topics/${topic.id}`}>
-                      <BookOpen className="mr-2 h-4 w-4" /> Explore
-                    </Link>
-                  </Button>
-                </CardFooter>
-              </Card>
-            </motion.div>
-          ))}
-        </motion.div>
+        {isLoading ? (
+          <div className="text-center text-white">Loading topics...</div>
+        ) : topics.length > 0 ? (
+          <motion.div 
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-16"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.4, staggerChildren: 0.1 }}
+          >
+            {topics.map((topic, index) => (
+              <motion.div
+                key={topic.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.1 }}
+              >
+                <Card className="h-full flex flex-col overflow-hidden group hover:shadow-lg transition-shadow duration-300">
+                  <CardHeader className={`${topic.color} text-white`}>
+                    <CardTitle>{topic.title}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="flex-grow">
+                    <p className="text-gray-600">{topic.documentsCount} documents • {topic.testsCount} tests</p>
+                  </CardContent>
+                  <CardFooter className="bg-gray-50 group-hover:bg-gray-100 transition-colors duration-300">
+                    <Button variant="ghost" className="w-full" asChild>
+                      <Link href={`/topics/${topic.id}`}>
+                        <BookOpen className="mr-2 h-4 w-4" /> Explore
+                      </Link>
+                    </Button>
+                  </CardFooter>
+                </Card>
+              </motion.div>
+            ))}
+          </motion.div>
+        ) : (
+          <motion.div
+            className="text-center text-white mb-16"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.4 }}
+          >
+            No topics found. Start by adding a new topic!
+          </motion.div>
+        )}
 
         <motion.div
           initial={{ opacity: 0, scale: 0.8 }}
